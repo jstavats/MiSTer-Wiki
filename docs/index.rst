@@ -1,6 +1,6 @@
 ## MiSTer Wiki
 ### [Donate](Donate)
-User Manual
+User Manual 
 ---
 * Tutorials and Reference
   * [FAQ](Frequently-Asked-Questions)
