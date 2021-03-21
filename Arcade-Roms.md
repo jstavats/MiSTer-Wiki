@@ -1,0 +1,1 @@
+[This page moved here.](https://github.com/MiSTer-devel/Main_MiSTer/wiki/Arcade-Roms-and-MRA-files)

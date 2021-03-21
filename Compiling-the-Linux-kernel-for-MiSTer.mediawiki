@@ -1,0 +1,83 @@
+== Building a Kernel For MiSTer From Sources ==
+A Warning ahead:
+There should be no need for the normal user of the MiSTer platform to ever recompile the kernel. This documentation is aimed to the guys, that want to get into MiSTer development to support the platform.
+
+'''BE AWARE THAT YOU CAN BREAK YOUR MISTER INSTALLATION WITH IT. YOU SHOULD ALWAYS TRY IT ON A CLEAN INSTALLATION.'''
+
+In general you should already know how to compile a kernel for Linux, how to configure it and how to add the stuff you want. If you do not understand any of the terms before, do not try to learn it from this guide. Refer to generic howtos on how to configure and compile the linux kernel.
+
+This document may also be a headstart for someone, who wants to integrate his own specific not officially supported drivers or settings. As I into my journey struggled with finding all the relevant information, unspecific to MiSTer and specific to it, I thought it might be a good help to consolidate all required information into one page.
+----
+To compile the Linux kernel for MiSTer on the ARM Cortex-A9 on the DE10-Nano, it requires a certain setup and specific toolchain to be successful.
+
+You need:
+# A linux box (I used Ubuntu 18.04 LTS), could be a VM.
+# Install the following packages:
+#: build-essential, linux kernel headers, git, bison, libncureses-dev, flex, openssl, libssl-dev, dkms, libelf-dev, libudev-dev, libpci-dev, libiberty-dev, autoconf, build-dep, liblz4-tool, bc, curl, libcurses5-dev, lzop, u-boot-tools
+# The cross compiler from linaro.org.
+
+== Setting Up The Environment ==
+Setup a new Ubuntu18.04 environment both desktop and server work. I used desktop minimal. Most likely it works as well with any other new release of Ubuntu, but I did not test it.
+
+We need to prepare our development environment with certain packages. Everything is available in the normal Ubuntu repositories.
+ sudo apt-get update
+ sudo apt-get upgrade
+ sudo apt-get install build-essential git libncurses-dev flex bison openssl libssl-dev dkms libelf-dev libudev-dev \ 
+     libpci-dev libiberty-dev autoconf liblz4-tool bc curl gcc git libssl-dev libncurses5-dev lzop make u-boot-tools    
+ sudo apt-get build-dep linux</code>
+
+
+Install the arm cross compilation toolchain (as described here: [https://github.com/MiSTer-devel/Main_MiSTer/wiki/ARM-cross-compiling]):
+ wget -c https://releases.linaro.org/components/toolchain/binaries/6.5-2018.12/arm-linux-gnueabihf/gcc-linaro-6.5.0-2018.12-x86_64_arm-linux-gnueabihf.tar.xz
+Unpack to /opt
+ cat gcc-linaro-6.5.0-2018.12-x86_64_arm-linux-gnueabihf.tar.xz | sudo bash -c 'cd /opt ; tar xJ'
+ sudo chown -R root:root /opt/gcc-linaro-6.5.0-2018.12-x86_64_arm-linux-gnueabihf
+
+== Download The Sources ==
+Now we need to clone the git repository from github. I recommend to create a new working directory
+ cd
+ mkdir mister ; cd mister
+Then clone the kernel (--depth=1 clones only the recent version, slimming down the download)
+ git clone --depth=1 https://github.com/MiSTer-devel/Linux-Kernel_MiSTer.git
+ cd Linux-Kernel_MiSTer
+
+
+== Activate The Configuration For MiSTer ==
+The git clone process has created a new directory called 'Linux-Kernel-MiSTer'. Inside of it you will find the full kernel sources including all device drivers required for MiSTer. To be able to compile the kernel, we need to load the correct configuration into the .config file.
+
+We need to tell the build tools for what platform we want to build for
+ export ARCH=arm 
+and what toolchain to use e.g. not the default of the system
+ export CROSS_COMPILE=/opt/gcc-linaro-6.5.0-2018.12-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+
+
+''Remark: Alternative to defining environment variables in bash, you can also directly define them as parameters during the make process like''
+ make ARCH=arm CROSS_COMPILE=/opt/gcc-linaro-6.5.0-2018.12-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf- something
+
+Also we want to set parallel compilation (4 processors in my VM). I like to put two more jobs in the workers than I have processes available. Due to small files it is more efficient to keep the CPUs busy.
+ -j6
+
+Now lets grab the configuration file and store it as .config. The MiSTer configuration file is stored in arch/arm/configs/MiSTer_defconfig. Make will find it with this command and put it into your .config file.
+ make MiSTer_defconfig
+
+Fully optional: At this point you can start integrating what you think is missing. Open the .config file and edit it for things you want to have in the kernel. I wanted to have the codepage 850 compiled, so search for NLS and then for the codepage 850 and activate it. I am not going into detail how you do this. This is general knowledge required about how the kernel configuration works. If you trying to attempt it, you should know that. If not refer to kernel.org to learn how to configure and compile a kernel in general.
+
+Store it as a defconfig make it smaller (remove all defaults from the file) (maybe not required)
+ make savedefconfig
+
+== Compile It ==
+Now it's time for compilation of the Linux kernel and the device tree files. If you have setup everything like above it should run without a problem and will take some time (4 core on an older i7 took me 11.23 Minutes)
+ make -j6 zImage 
+To build the device tree run
+ make socfpga_cyclone5_de10_nano.dtb
+
+Now you have the required zImage file in your arch/arm/boot and the .dtb files in arch/arm/boot/dts.
+
+Last step for building the bootable kernel is to concatenate the zImage with the correct .dtb file. 
+ cat arch/arm/boot/zImage arch/arm/boot/dts/socfpga_cyclone5_de10_nano.dtb > zImage_dtb
+This creates the zImage_dtb file in your Linux-Kernel_MiSTer subdirectory.
+
+== Replace the Kernel On the SD-card ==
+Now the kernel is build and you can copy it directly to the SD-card into the linux folder. You should make a good backup of the existing zImage_dtb file. Just put the new file in the linux folder and reboot. If everything went well, the new kernel is now running and you have included the driver/setting into your custom kernel.
+
+
