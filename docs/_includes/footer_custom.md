@@ -1,1 +1,0 @@
-MiSTer FPGA Offical Home Page - Open Source GPL 3.0 - [project discussion forum](http://www.misterfpga.org/) 
