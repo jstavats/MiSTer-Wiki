@@ -1,1 +1,4 @@
 theme: jekyll-theme-cayman
+aux_links:
+  "Users Manual":
+    - "_Sidebar"
